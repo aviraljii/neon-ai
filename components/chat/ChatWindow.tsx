@@ -67,7 +67,18 @@ export function ChatWindow() {
         }),
       });
 
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      let data: any = null;
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const errorText = await response.text();
+        throw new Error(
+          response.ok
+            ? 'Neon AI returned an unexpected response format.'
+            : `Neon AI request failed (${response.status}): ${errorText.slice(0, 200)}`
+        );
+      }
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || 'Failed to get response from Neon AI');

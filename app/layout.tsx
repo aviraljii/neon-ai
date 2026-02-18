@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   title: 'Neon AI - Your Smart Shopping Assistant',
   description: 'Analyze and compare clothing products from e-commerce websites with AI-powered recommendations',
   generator: 'v0.app',
+  icons: {
+    icon: '/placeholder-logo.svg',
+  },
 }
 
 export default function RootLayout({

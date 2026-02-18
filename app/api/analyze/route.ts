@@ -40,6 +40,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(analysisResult);
   } catch (error) {
     console.error('Analyze API error:', error);
-    return NextResponse.json({ error: 'Failed to analyze product' }, { status: 500 });
+    const message =
+      error instanceof Error ? error.message : 'Failed to analyze product';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

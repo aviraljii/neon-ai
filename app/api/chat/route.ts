@@ -6,8 +6,6 @@ import { GoogleGenerativeAI, Part } from '@google/generative-ai';
 
 export async function POST(request: NextRequest) {
   try {
-    await connectDB();
-
     const { userId, message, chatHistory = [] } = await request.json();
 
     if (!message || typeof message !== 'string') {
@@ -22,9 +20,11 @@ export async function POST(request: NextRequest) {
     // Call AI service with message history
     const aiResponse = await callAIWithSDK(trimmedMessage, chatHistory);
 
-    // Save query to database
+    // Save query to database when a user id is provided.
+    // Chat responses should still work even if DB is not configured.
     if (userId) {
       try {
+        await connectDB();
         const queryRecord = new Query({
           userId,
           queryText: trimmedMessage,

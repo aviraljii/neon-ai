@@ -29,6 +29,8 @@ export function ProductCard({
   onAddToWishlist,
   onView,
 }: ProductCardProps) {
+  const trackedBuyUrl = `/api/affiliate/click?productId=${encodeURIComponent(product.id)}&platform=${encodeURIComponent(product.source)}&affiliateLink=${encodeURIComponent(product.sourceLink)}`;
+
   return (
     <Card className="bg-card border-border overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full">
       {/* Image Placeholder */}
@@ -80,7 +82,7 @@ export function ProductCard({
             className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
             size="sm"
           >
-            <a href={product.sourceLink} target="_blank" rel="noopener noreferrer">
+            <a href={trackedBuyUrl} target="_blank" rel="noopener noreferrer">
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline ml-2">View</span>
             </a>

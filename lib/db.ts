@@ -3,13 +3,15 @@ let cached: { conn: any; promise: Promise<any> | null } = {
   promise: null,
 };
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/neon-ai';
-
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable');
-}
+const MONGODB_URI = process.env.MONGODB_URI;
 
 export async function connectDB() {
+  if (!MONGODB_URI) {
+    throw new Error(
+      'Please define the MONGODB_URI environment variable (e.g. in Vercel Project Settings).'
+    );
+  }
+
   if (cached.conn) {
     return cached.conn;
   }
