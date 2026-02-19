@@ -4,14 +4,17 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MessageBubble } from './MessageBubble';
-import { Send, Sparkles, AlertCircle } from 'lucide-react';
+import { ImageUploadInput } from '@/components/upload/ImageUploadInput';
+import { Send, Sparkles, AlertCircle, Image as ImageIcon, X } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { sendChatMessage } from '@/lib/api';
 
 export interface ChatMessage {
   id: string;
   content: string;
   isAi: boolean;
   isError?: boolean;
+  imageUrl?: string;
 }
 
 export function ChatWindow() {
@@ -25,6 +28,8 @@ export function ChatWindow() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showImageUpload, setShowImageUpload] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string>('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,16 +39,19 @@ export function ChatWindow() {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && !selectedImage) || isLoading) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      content: input,
+      content: input || (selectedImage ? '[Image attached]' : ''),
       isAi: false,
+      imageUrl: selectedImage,
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
+    setSelectedImage('');
+    setShowImageUpload(false);
     setIsLoading(true);
 
     try {
@@ -55,38 +63,20 @@ export function ChatWindow() {
           content: msg.content,
         }));
 
-      // Call the real AI API
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: userMessage.content,
-          chatHistory,
-        }),
+      // Call the centralized API client
+      const result = await sendChatMessage({
+        message: userMessage.content,
+        chatHistory,
+        imageUrl: selectedImage,
       });
 
-      const contentType = response.headers.get('content-type') || '';
-      let data: any = null;
-      if (contentType.includes('application/json')) {
-        data = await response.json();
-      } else {
-        const errorText = await response.text();
-        throw new Error(
-          response.ok
-            ? 'Neon AI returned an unexpected response format.'
-            : `Neon AI request failed (${response.status}): ${errorText.slice(0, 200)}`
-        );
-      }
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to get response from Neon AI');
+      if (!result.success || result.error) {
+        throw new Error(result.error || 'Failed to get response from Neon AI');
       }
 
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        content: data.response || 'No response received. Please try again.',
+        content: result.response,
         isAi: true,
       };
 
@@ -114,11 +104,15 @@ export function ChatWindow() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="border-b border-border p-4 sm:p-6">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-6 w-6 text-accent" />
+      <div className="border-b border-border/50 p-4 sm:p-6 bg-gradient-to-r from-purple-900/20 to-transparent">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-gradient-to-r from-purple-600 to-cyan-500 neon-glow-pulse">
+            <Sparkles className="h-5 w-5 text-white" />
+          </div>
           <div>
-            <h1 className="font-semibold text-foreground">Neon AI Chat</h1>
+            <h1 className="font-bold text-lg bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
+              Neon AI Chat
+            </h1>
             <p className="text-xs sm:text-sm text-muted-foreground">Your Shopping Assistant</p>
           </div>
         </div>
@@ -133,6 +127,8 @@ export function ChatWindow() {
               content={message.content}
               isAi={message.isAi}
               isError={message.isError}
+              imageUrl={message.imageUrl}
+              isTyping={false}
             />
           ))}
           {isLoading && <MessageBubble content="" isAi={true} isLoading={true} />}
@@ -140,8 +136,46 @@ export function ChatWindow() {
       </ScrollArea>
 
       {/* Input */}
-      <div className="border-t border-border p-4 sm:p-6 bg-card">
-        <div className="flex gap-2">
+      <div className="border-t border-border/50 bg-card glassmorphism">
+        {/* Image Upload Section */}
+        {showImageUpload && (
+          <div className="border-b border-border p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-foreground">Add Image</h3>
+              <Button
+                onClick={() => {
+                  setShowImageUpload(false);
+                  setSelectedImage('');
+                }}
+                size="sm"
+                variant="ghost"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <ImageUploadInput onUploaded={setSelectedImage} />
+          </div>
+        )}
+
+        {/* Selected Image Preview */}
+        {selectedImage && !showImageUpload && (
+          <div className="border-b border-border p-4 sm:p-6 flex items-center gap-3">
+            <img src={selectedImage} alt="Selected" className="h-12 w-12 rounded object-cover" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground truncate">Image attached</p>
+            </div>
+            <Button
+              onClick={() => setSelectedImage('')}
+              size="sm"
+              variant="ghost"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* Input Area */}
+        <div className="p-4 sm:p-6 space-y-3">
           <Input
             placeholder="Paste a product link or ask me something..."
             value={input}
@@ -150,14 +184,25 @@ export function ChatWindow() {
             disabled={isLoading}
             className="bg-background border-border"
           />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            size="icon"
-            className="bg-accent text-accent-foreground hover:bg-accent/90"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setShowImageUpload(!showImageUpload)}
+              disabled={isLoading || showImageUpload}
+              size="icon"
+              variant="outline"
+              title="Attach image"
+            >
+              <ImageIcon className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={handleSend}
+              disabled={(!input.trim() && !selectedImage) || isLoading}
+              size="icon"
+              className="bg-gradient-to-r from-purple-600 to-cyan-500 text-white hover:shadow-lg hover:from-purple-500 hover:to-cyan-400 flex-1 transition-all"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>

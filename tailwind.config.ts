@@ -84,10 +84,30 @@ const config: Config = {
             height: '0',
           },
         },
+        'glow-pulse': {
+          '0%, 100%': {
+            boxShadow: '0 0 20px rgba(212, 70, 239, 0.5), 0 0 30px rgba(0, 217, 255, 0.3)',
+          },
+          '50%': {
+            boxShadow: '0 0 30px rgba(212, 70, 239, 0.8), 0 0 40px rgba(0, 217, 255, 0.5)',
+          },
+        },
+        'message-enter': {
+          from: {
+            opacity: '0',
+            transform: 'translateY(10px)',
+          },
+          to: {
+            opacity: '1',
+            transform: 'translateY(0)',
+          },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'glow-pulse': 'glow-pulse 3s ease-in-out infinite',
+        'message-enter': 'message-enter 0.3s ease-out',
       },
     },
   },
