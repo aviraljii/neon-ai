@@ -1,7 +1,7 @@
 import { connectDB } from '@/lib/db';
 import { Query } from '@/models/Query';
 import { NextRequest, NextResponse } from 'next/server';
-import { getSystemPrompt } from '@/lib/ai/promptTemplates';
+import { getDynamicPrompt, getSystemPrompt } from '@/lib/ai/promptTemplates';
 import { GoogleGenerativeAI, Part } from '@google/generative-ai';
 
 export async function POST(request: NextRequest) {
@@ -52,6 +52,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const lowerMessage = errorMessage.toLowerCase();
+    const isRateLimited =
+      errorMessage.includes('429') ||
+      lowerMessage.includes('too many requests') ||
+      lowerMessage.includes('quota exceeded');
+
+    if (isRateLimited) {
+      const retryMatch =
+        errorMessage.match(/retry in\s+([\d.]+)s/i) ||
+        errorMessage.match(/"retryDelay":"(\d+)s"/i);
+      const retryAfterSeconds = retryMatch
+        ? Math.max(1, Math.ceil(Number(retryMatch[1])))
+        : 60;
+
+      return NextResponse.json(
+        {
+          error: `Rate limit reached on Gemini free tier. Please retry in about ${retryAfterSeconds} seconds.`,
+          code: 'AI_RATE_LIMITED',
+          retryAfterSeconds,
+          success: false,
+        },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(retryAfterSeconds) },
+        }
+      );
+    }
+
     return NextResponse.json(
       { error: `Neon AI Error: ${errorMessage}`, details: String(error), success: false },
       { status: 500 }
@@ -86,6 +114,7 @@ async function callAIWithSDK(
   // Standard safe approach: Prep the system prompt as a special instruction
   // For gemini-pro, we prepend it to the history or the first message
   const systemPrompt = getSystemPrompt();
+  const dynamicPrompt = getDynamicPrompt(userMessage);
   
   const chat = model.startChat({
     history: history.length > 0 
@@ -100,7 +129,13 @@ async function callAIWithSDK(
         ],
   });
 
-  const result = await chat.sendMessage(userMessage);
+  const scopedMessage = `CONTEXT RULES FOR THIS TURN:
+${dynamicPrompt}
+
+USER MESSAGE:
+${userMessage}`;
+
+  const result = await chat.sendMessage(scopedMessage);
   const response = await result.response;
   return response.text();
 }

@@ -54,7 +54,9 @@ export async function sendChatMessage(request: ChatRequest): Promise<ChatRespons
     const data = await response.json();
 
     if (!response.ok || !data.success) {
-      throw new Error(data.error || 'Failed to get response from Neon AI');
+      const baseError = data?.error || 'Failed to get response from Neon AI';
+      const errorWithCode = data?.code ? `${data.code}: ${baseError}` : baseError;
+      throw new Error(errorWithCode);
     }
 
     return {
